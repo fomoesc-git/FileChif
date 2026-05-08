@@ -49,12 +49,48 @@ input {
   padding: 24px 0 40px;
 }
 
-.app-nav {
+.app-header {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   width: min(1180px, calc(100vw - 32px));
   margin: 0 auto;
   padding-top: 20px;
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-lockup strong {
+  display: block;
+  font-size: 18px;
+}
+
+.brand-lockup span {
+  color: #61707f;
+  font-size: 13px;
+}
+
+.brand-mark,
+.about-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #14b8a6);
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.app-nav {
+  display: flex;
+  gap: 10px;
 }
 
 .app-nav .selected {
@@ -102,6 +138,30 @@ input {
   border-radius: 8px;
   background: #ffffff;
   padding: 18px;
+}
+
+.hero-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 35%),
+    #ffffff;
+}
+
+.about-mark {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  font-size: 24px;
+}
+
+.tagline {
+  margin: 8px 0;
+  color: #1d4ed8;
+  font-size: 18px;
+  font-weight: 700;
 }
 
 .panel label {
@@ -318,7 +378,8 @@ input {
 
 @media (max-width: 760px) {
   .toolbar,
-  .panel-heading {
+  .panel-heading,
+  .app-header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -332,7 +393,8 @@ input {
   }
 
   .settings-grid,
-  .info-list {
+  .info-list,
+  .hero-panel {
     grid-template-columns: 1fr;
   }
 

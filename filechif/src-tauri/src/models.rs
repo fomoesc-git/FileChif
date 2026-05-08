@@ -75,6 +75,14 @@ pub struct ReleaseInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct AboutData {
+    pub tagline: String,
+    pub description: String,
+    pub maintainer: String,
+    pub license: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AppStatusData {
     pub app_name: String,
     pub app_version: String,
@@ -85,4 +93,5 @@ pub struct AppStatusData {
     pub templates_path: String,
     pub dependencies: Vec<DependencyStatus>,
     pub release_info: ReleaseInfo,
+    pub about: AboutData,
 }

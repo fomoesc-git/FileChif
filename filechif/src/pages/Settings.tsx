@@ -23,6 +23,12 @@ type AppStatusData = {
     internal_install_url: string;
     update_policy: string;
   };
+  about: {
+    tagline: string;
+    description: string;
+    maintainer: string;
+    license: string;
+  };
 };
 
 type ApiResponse<T> = {
@@ -42,7 +48,11 @@ function installHint(name: string) {
   return "";
 }
 
-export default function Settings() {
+type SettingsProps = {
+  initialSection?: "settings" | "about";
+};
+
+export default function Settings({ initialSection = "settings" }: SettingsProps) {
   const [status, setStatus] = useState<AppStatusData | null>(null);
   const [error, setError] = useState("");
 
@@ -71,8 +81,8 @@ export default function Settings() {
     <main className="app-shell">
       <section className="toolbar">
         <div>
-          <h1>设置</h1>
-          <p>应用状态与本地依赖</p>
+          <h1>{initialSection === "about" ? "关于 FileChif" : "设置"}</h1>
+          <p>{initialSection === "about" ? "产品信息、开源仓库与版本状态" : "应用状态与本地依赖"}</p>
         </div>
         <button type="button" onClick={refreshStatus}>
           刷新状态
@@ -83,6 +93,27 @@ export default function Settings() {
 
       {status ? (
         <section className="settings-grid">
+          {initialSection === "about" ? (
+            <article className="panel hero-panel">
+              <div className="about-mark">FC</div>
+              <div>
+                <h2>FileChif</h2>
+                <p className="tagline">{status.about.tagline}</p>
+                <p>{status.about.description}</p>
+                <dl className="info-list">
+                  <dt>维护者</dt>
+                  <dd>{status.about.maintainer}</dd>
+                  <dt>许可</dt>
+                  <dd>{status.about.license}</dd>
+                  <dt>版本</dt>
+                  <dd>{status.app_version}</dd>
+                  <dt>通道</dt>
+                  <dd>{status.release_channel}</dd>
+                </dl>
+              </div>
+            </article>
+          ) : null}
+
           <article className="panel">
             <h2>应用</h2>
             <dl className="info-list">

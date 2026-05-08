@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::models::{
-    ApiError, ApiResponse, AppStatusData, ConvertData, ConvertRequest, DependencyStatus,
-    HealthData, HistoryRecord, ReleaseInfo, TemplateRecord,
+    AboutData, ApiError, ApiResponse, AppStatusData, ConvertData, ConvertRequest,
+    DependencyStatus, HealthData, HistoryRecord, ReleaseInfo, TemplateRecord,
 };
 use chrono::Utc;
 use serde_json::Value;
@@ -430,7 +430,7 @@ pub fn convert_with_pandoc(request: ConvertRequest, format: &str) -> ApiResponse
 #[tauri::command]
 pub fn health_check() -> ApiResponse<HealthData> {
     ok(HealthData {
-        app_name: "filechif".to_string(),
+        app_name: "FileChif".to_string(),
         version: "0.1.0".to_string(),
         status: "ok".to_string(),
     })
@@ -439,7 +439,7 @@ pub fn health_check() -> ApiResponse<HealthData> {
 #[tauri::command]
 pub fn get_app_status() -> ApiResponse<AppStatusData> {
     ok(AppStatusData {
-        app_name: "filechif".to_string(),
+        app_name: "FileChif".to_string(),
         app_version: "0.1.0".to_string(),
         build_time: env!("FILECHIF_BUILD_TIME").to_string(),
         release_channel: env!("FILECHIF_RELEASE_CHANNEL").to_string(),
@@ -458,6 +458,15 @@ pub fn get_app_status() -> ApiResponse<AppStatusData> {
             update_policy:
                 "内部 preview 版暂不自动更新；从 GitHub Actions 或 releases 目录获取新版安装包。"
                     .to_string(),
+        },
+        about: AboutData {
+            tagline: "把 Markdown 快速整理成交付文档。".to_string(),
+            description:
+                "FileChif 是面向个人与小团队的桌面文档工作台，聚焦 Markdown 到 DOCX/PDF 的稳定转换、模板复用和本地历史留存。"
+                    .to_string(),
+            maintainer: "fomoesc-git / studio internal preview".to_string(),
+            license: "Open source preview; license to be confirmed before public release."
+                .to_string(),
         },
     })
 }
