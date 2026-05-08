@@ -333,16 +333,15 @@ export default function Workbench() {
 
   return (
     <main className="app-shell">
-      <section className="hero-banner">
+      <section className="workspace-toolbar">
         <div>
-          <span className="eyebrow">FileChif Preview</span>
-          <h1>把 Markdown 变成能交付的文档</h1>
-          <p>选择输入、确认输出、套用模板，一次完成 DOCX/PDF 转换与历史留存。</p>
+          <h1>工作台</h1>
+          <p>选择文件或粘贴内容，快速输出 DOCX/PDF。</p>
         </div>
-        <div className="hero-actions">
+        <div className="toolbar-actions">
           <span className="status-pill">后端：{health}</span>
           <button type="button" onClick={handleHealthCheck}>
-            重新检测
+            检测
           </button>
         </div>
       </section>

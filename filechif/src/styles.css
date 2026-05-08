@@ -142,6 +142,34 @@ input:focus {
   margin-bottom: 20px;
 }
 
+.workspace-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.workspace-toolbar h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+
+.workspace-toolbar p {
+  margin: 4px 0 0;
+  color: #61707f;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .toolbar h1,
 .toolbar p,
 .panel h2 {
@@ -623,6 +651,7 @@ input:focus {
 
 @media (max-width: 760px) {
   .toolbar,
+  .workspace-toolbar,
   .panel-heading,
   .app-header,
   .hero-banner {
@@ -631,6 +660,10 @@ input:focus {
   }
 
   .hero-actions {
+    justify-content: flex-start;
+  }
+
+  .toolbar-actions {
     justify-content: flex-start;
   }
 
