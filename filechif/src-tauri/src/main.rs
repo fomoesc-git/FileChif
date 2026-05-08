@@ -10,6 +10,8 @@ fn main() {
             commands::get_app_status,
             commands::convert_markdown_to_docx,
             commands::convert_markdown_to_pdf,
+            commands::convert_text_to_docx,
+            commands::convert_text_to_pdf,
             commands::list_history,
             commands::open_output_file,
             commands::reveal_output_file,

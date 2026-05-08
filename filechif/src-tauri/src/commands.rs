@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::models::{
     AboutData, ApiError, ApiResponse, AppStatusData, ConvertData, ConvertRequest,
-    DependencyStatus, HealthData, HistoryRecord, ReleaseInfo, TemplateRecord,
+    DependencyStatus, HealthData, HistoryRecord, ReleaseInfo, TemplateRecord, TextConvertRequest,
 };
 use chrono::Utc;
 use serde_json::Value;
@@ -84,6 +84,10 @@ fn history_path() -> PathBuf {
 fn templates_path() -> PathBuf {
     ensure_data_file("templates.json");
     project_data_dir().join("templates.json")
+}
+
+fn pasted_sources_dir() -> PathBuf {
+    project_data_dir().join("pasted-sources")
 }
 
 fn ensure_data_file(file_name: &str) {
@@ -208,6 +212,13 @@ fn ensure_output_path(path: &Path, format: &str) -> Result<(), AppError> {
     fs::write(&probe_path, b"ok").map_err(|e| AppError::OutputDirNotWritable(e.to_string()))?;
     let _ = fs::remove_file(probe_path);
 
+    Ok(())
+}
+
+fn ensure_markdown_content(content: &str) -> Result<(), AppError> {
+    if content.trim().is_empty() {
+        return Err(AppError::InvalidParam("content is required".to_string()));
+    }
     Ok(())
 }
 
@@ -427,6 +438,47 @@ pub fn convert_with_pandoc(request: ConvertRequest, format: &str) -> ApiResponse
     }
 }
 
+pub fn convert_text_with_pandoc(request: TextConvertRequest, format: &str) -> ApiResponse<ConvertData> {
+    if let Err(error) = ensure_markdown_content(&request.content) {
+        return err(error);
+    }
+
+    let source_dir = pasted_sources_dir();
+    if let Err(error) = fs::create_dir_all(&source_dir).map_err(|e| AppError::Internal(e.to_string())) {
+        return err(error);
+    }
+
+    let safe_name = request
+        .source_name
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("pasted-markdown")
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || character == '-' || character == '_' {
+                character
+            } else {
+                '-'
+            }
+        })
+        .collect::<String>();
+    let input_path = source_dir.join(format!("{}-{}.md", safe_name, Uuid::new_v4()));
+
+    if let Err(error) = fs::write(&input_path, request.content).map_err(|e| AppError::Internal(e.to_string())) {
+        return err(error);
+    }
+
+    convert_with_pandoc(
+        ConvertRequest {
+            input_path: input_path.display().to_string(),
+            output_path: request.output_path,
+            template_path: request.template_path,
+        },
+        format,
+    )
+}
+
 #[tauri::command]
 pub fn health_check() -> ApiResponse<HealthData> {
     ok(HealthData {
@@ -479,6 +531,16 @@ pub fn convert_markdown_to_docx(request: ConvertRequest) -> ApiResponse<ConvertD
 #[tauri::command]
 pub fn convert_markdown_to_pdf(request: ConvertRequest) -> ApiResponse<ConvertData> {
     convert_with_pandoc(request, "pdf")
+}
+
+#[tauri::command]
+pub fn convert_text_to_docx(request: TextConvertRequest) -> ApiResponse<ConvertData> {
+    convert_text_with_pandoc(request, "docx")
+}
+
+#[tauri::command]
+pub fn convert_text_to_pdf(request: TextConvertRequest) -> ApiResponse<ConvertData> {
+    convert_text_with_pandoc(request, "pdf")
 }
 
 #[tauri::command]
@@ -731,6 +793,48 @@ mod tests {
         } else if let Some(error) = response.error {
             assert!(["PANDOC_UNAVAILABLE", "CONVERT_FAILED"].contains(&error.code.as_str()));
         }
+    }
+
+    #[test]
+    fn converts_pasted_markdown_content() {
+        let output_path = std::env::temp_dir().join(format!("filechif-{}.docx", Uuid::new_v4()));
+
+        let response = convert_text_with_pandoc(
+            TextConvertRequest {
+                content: "# Pasted\n\nMarkdown content.".to_string(),
+                output_path: output_path.display().to_string(),
+                template_path: None,
+                source_name: Some("pasted-test".to_string()),
+            },
+            "docx",
+        );
+
+        if Command::new("pandoc").arg("--version").output().is_ok() {
+            assert!(response.ok);
+            assert!(output_path.exists());
+            let _ = fs::remove_file(output_path);
+        } else if let Some(error) = response.error {
+            assert_eq!(error.code, "PANDOC_UNAVAILABLE");
+        }
+    }
+
+    #[test]
+    fn rejects_empty_pasted_markdown_content() {
+        let response = convert_text_with_pandoc(
+            TextConvertRequest {
+                content: "   ".to_string(),
+                output_path: "/tmp/filechif-output.docx".to_string(),
+                template_path: None,
+                source_name: None,
+            },
+            "docx",
+        );
+
+        assert!(!response.ok);
+        assert_eq!(
+            response.error.map(|error| error.code),
+            Some("INVALID_PARAM".to_string())
+        );
     }
 
     #[test]

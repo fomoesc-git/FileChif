@@ -20,7 +20,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
 }
 
@@ -49,7 +50,8 @@ button:disabled {
   opacity: 0.65;
 }
 
-input {
+input,
+textarea {
   width: 100%;
   border: 1px solid #d8e0eb;
   border-radius: 12px;
@@ -59,7 +61,14 @@ input {
   outline: none;
 }
 
-input:focus {
+textarea {
+  min-height: 180px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+input:focus,
+textarea:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
@@ -370,11 +379,16 @@ input:focus {
 }
 
 .format-row,
+.input-mode-tabs,
 .filter-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin: 16px 0;
+}
+
+.input-mode-tabs {
+  margin-top: 0;
 }
 
 .filter-row {
@@ -383,6 +397,7 @@ input:focus {
 }
 
 .format-row .selected,
+.input-mode-tabs .selected,
 .filter-row .selected {
   border-color: #2563eb;
   background: #eff6ff;
@@ -683,6 +698,7 @@ input:focus {
 
   .path-row,
   .template-item,
+  .input-mode-tabs,
   .filter-row,
   .app-nav {
     grid-template-columns: 1fr;

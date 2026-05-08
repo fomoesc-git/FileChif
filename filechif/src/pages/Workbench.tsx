@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 
 type Format = "docx" | "pdf";
+type InputMode = "file" | "paste";
 
 type HealthData = {
   app_name: string;
@@ -14,6 +15,13 @@ type ConvertRequest = {
   input_path: string;
   output_path: string;
   template_path?: string | null;
+};
+
+type TextConvertRequest = {
+  content: string;
+  output_path: string;
+  template_path?: string | null;
+  source_name?: string | null;
 };
 
 type ConvertData = {
@@ -55,6 +63,11 @@ type HistoryFilter = "all" | "success" | "failed";
 const commandByFormat: Record<Format, string> = {
   docx: "convert_markdown_to_docx",
   pdf: "convert_markdown_to_pdf",
+};
+
+const textCommandByFormat: Record<Format, string> = {
+  docx: "convert_text_to_docx",
+  pdf: "convert_text_to_pdf",
 };
 
 const formatExtensions: Record<Format, string> = {
@@ -114,8 +127,11 @@ function errorHint(error?: { code: string; message: string } | null) {
 
 export default function Workbench() {
   const [health, setHealth] = useState<string>("未连接");
+  const [inputMode, setInputMode] = useState<InputMode>("file");
   const [format, setFormat] = useState<Format>("docx");
   const [inputPath, setInputPath] = useState("");
+  const [pastedMarkdown, setPastedMarkdown] = useState("");
+  const [pastedSourceName, setPastedSourceName] = useState("pasted-markdown");
   const [outputPath, setOutputPath] = useState("");
   const [templatePath, setTemplatePath] = useState("");
   const [isConverting, setIsConverting] = useState(false);
@@ -132,7 +148,9 @@ export default function Workbench() {
       history.filter((record) => historyFilter === "all" || record.status === historyFilter),
     [history, historyFilter],
   );
-  const canConvert = Boolean(inputPath.trim() && outputPath.trim());
+  const canConvert = Boolean(
+    outputPath.trim() && (inputMode === "file" ? inputPath.trim() : pastedMarkdown.trim()),
+  );
 
   const updateFormat = (nextFormat: Format) => {
     setFormat(nextFormat);
@@ -167,16 +185,24 @@ export default function Workbench() {
     setNotice("");
     setResult(null);
 
-    const request: ConvertRequest = {
-      input_path: inputPath,
-      output_path: outputPath,
-      template_path: templatePath.trim() ? templatePath : null,
-    };
-
     try {
-      const response = await invoke<ApiResponse<ConvertData>>(commandName, {
-        request,
-      });
+      const response =
+        inputMode === "file"
+          ? await invoke<ApiResponse<ConvertData>>(commandName, {
+              request: {
+                input_path: inputPath,
+                output_path: outputPath,
+                template_path: templatePath.trim() ? templatePath : null,
+              } satisfies ConvertRequest,
+            })
+          : await invoke<ApiResponse<ConvertData>>(textCommandByFormat[format], {
+              request: {
+                content: pastedMarkdown,
+                output_path: outputPath,
+                template_path: templatePath.trim() ? templatePath : null,
+                source_name: pastedSourceName.trim() ? pastedSourceName : null,
+              } satisfies TextConvertRequest,
+            });
       setResult(response);
       await refreshHistory();
     } catch (error) {
@@ -353,27 +379,66 @@ export default function Workbench() {
           <div className="panel-title">
             <span className="panel-kicker">Step 1</span>
             <h2>创建转换任务</h2>
-            <p>建议先用 `examples/sample-report.md` 做一次烟雾测试。</p>
+            <p>选择本地文件，或直接粘贴从 AI 对话工具复制出的 Markdown。</p>
           </div>
 
-          <label className="field-card">
-            <span className="input-label">输入 Markdown</span>
-            <div className="path-row">
-              <input
-                value={inputPath}
-                onChange={(event) => {
-                  setInputPath(event.target.value);
-                  if (!outputPath) {
-                    setOutputPath(replaceExtension(event.target.value, formatExtensions[format]));
-                  }
-                }}
-                placeholder="/path/to/input.md"
-              />
-              <button type="button" className="secondary-action" onClick={handleSelectInput}>
-                选择
-              </button>
-            </div>
-          </label>
+          <div className="input-mode-tabs" role="group" aria-label="输入来源">
+            <button
+              type="button"
+              className={inputMode === "file" ? "selected" : ""}
+              onClick={() => setInputMode("file")}
+            >
+              本地文件
+            </button>
+            <button
+              type="button"
+              className={inputMode === "paste" ? "selected" : ""}
+              onClick={() => setInputMode("paste")}
+            >
+              粘贴 Markdown
+            </button>
+          </div>
+
+          {inputMode === "file" ? (
+            <label className="field-card">
+              <span className="input-label">输入 Markdown</span>
+              <div className="path-row">
+                <input
+                  value={inputPath}
+                  onChange={(event) => {
+                    setInputPath(event.target.value);
+                    if (!outputPath) {
+                      setOutputPath(replaceExtension(event.target.value, formatExtensions[format]));
+                    }
+                  }}
+                  placeholder="/path/to/input.md"
+                />
+                <button type="button" className="secondary-action" onClick={handleSelectInput}>
+                  选择
+                </button>
+              </div>
+            </label>
+          ) : (
+            <>
+              <label className="field-card">
+                <span className="input-label">来源名称</span>
+                <input
+                  value={pastedSourceName}
+                  onChange={(event) => setPastedSourceName(event.target.value)}
+                  placeholder="例如：客户方案初稿"
+                />
+              </label>
+              <label className="field-card">
+                <span className="input-label">粘贴 Markdown</span>
+                <textarea
+                  value={pastedMarkdown}
+                  onChange={(event) => setPastedMarkdown(event.target.value)}
+                  placeholder={"# 标题\n\n把 AI 对话工具里复制出来的 Markdown 粘贴到这里。"}
+                  rows={10}
+                />
+              </label>
+            </>
+          )}
 
           <label className="field-card">
             <span className="input-label">输出文件</span>

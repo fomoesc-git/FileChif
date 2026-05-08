@@ -37,6 +37,14 @@ pub struct ConvertRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct TextConvertRequest {
+    pub content: String,
+    pub output_path: String,
+    pub template_path: Option<String>,
+    pub source_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct HistoryRecord {
     pub record_id: String,
     pub job_id: String,
