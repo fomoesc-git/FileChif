@@ -132,6 +132,7 @@ export default function Workbench() {
       history.filter((record) => historyFilter === "all" || record.status === historyFilter),
     [history, historyFilter],
   );
+  const canConvert = Boolean(inputPath.trim() && outputPath.trim());
 
   const updateFormat = (nextFormat: Format) => {
     setFormat(nextFormat);
@@ -332,23 +333,32 @@ export default function Workbench() {
 
   return (
     <main className="app-shell">
-      <section className="toolbar">
+      <section className="hero-banner">
         <div>
-          <h1>filechif</h1>
-          <p>Markdown 转 DOCX / PDF 工作台</p>
+          <span className="eyebrow">FileChif Preview</span>
+          <h1>把 Markdown 变成能交付的文档</h1>
+          <p>选择输入、确认输出、套用模板，一次完成 DOCX/PDF 转换与历史留存。</p>
         </div>
-        <button type="button" onClick={handleHealthCheck}>
-          后端状态：{health}
-        </button>
+        <div className="hero-actions">
+          <span className="status-pill">后端：{health}</span>
+          <button type="button" onClick={handleHealthCheck}>
+            重新检测
+          </button>
+        </div>
       </section>
 
-      {notice ? <div className="notice">{notice}</div> : null}
+      {notice ? <div className="notice floating-notice">{notice}</div> : null}
 
       <section className="workspace-grid">
-        <form className="panel" onSubmit={(event) => event.preventDefault()}>
-          <h2>转换任务</h2>
-          <label>
-            输入 Markdown 路径
+        <form className="panel task-panel" onSubmit={(event) => event.preventDefault()}>
+          <div className="panel-title">
+            <span className="panel-kicker">Step 1</span>
+            <h2>创建转换任务</h2>
+            <p>建议先用 `examples/sample-report.md` 做一次烟雾测试。</p>
+          </div>
+
+          <label className="field-card">
+            <span className="input-label">输入 Markdown</span>
             <div className="path-row">
               <input
                 value={inputPath}
@@ -360,52 +370,57 @@ export default function Workbench() {
                 }}
                 placeholder="/path/to/input.md"
               />
-              <button type="button" onClick={handleSelectInput}>
+              <button type="button" className="secondary-action" onClick={handleSelectInput}>
                 选择
               </button>
             </div>
           </label>
-          <label>
-            输出文件路径
+
+          <label className="field-card">
+            <span className="input-label">输出文件</span>
             <div className="path-row">
               <input
                 value={outputPath}
                 onChange={(event) => setOutputPath(event.target.value)}
                 placeholder={format === "docx" ? "/path/to/output.docx" : "/path/to/output.pdf"}
               />
-              <button type="button" onClick={handleSelectOutput}>
+              <button type="button" className="secondary-action" onClick={handleSelectOutput}>
                 另存为
               </button>
             </div>
           </label>
-          <label>
-            模板路径
+
+          <label className="field-card">
+            <span className="input-label">DOCX 模板（可选）</span>
             <div className="path-row">
               <input
                 value={templatePath}
                 onChange={(event) => setTemplatePath(event.target.value)}
                 placeholder="可选，仅 DOCX reference-doc"
               />
-              <button type="button" onClick={handleSelectTemplate}>
+              <button type="button" className="secondary-action" onClick={handleSelectTemplate}>
                 选择
               </button>
             </div>
           </label>
-          <label>
-            模板名称
+
+          <label className="field-card compact-field">
+            <span className="input-label">保存到模板库</span>
             <div className="path-row">
               <input
                 value={templateName}
                 onChange={(event) => setTemplateName(event.target.value)}
                 placeholder="加入模板库时使用，可留空"
               />
-              <button type="button" onClick={addCurrentTemplate}>
+              <button type="button" className="secondary-action" onClick={addCurrentTemplate}>
                 加入模板库
               </button>
             </div>
           </label>
+
           {templates.length > 0 ? (
             <div className="template-library">
+              <span className="section-label">模板库</span>
               {templates.map((template) => (
                 <article
                   className={template.path === templatePath ? "template-item selected" : "template-item"}
@@ -421,55 +436,84 @@ export default function Workbench() {
               ))}
             </div>
           ) : null}
+
           <div className="format-row" role="group" aria-label="输出格式">
             <button
               type="button"
-              className={format === "docx" ? "selected" : ""}
+              className={format === "docx" ? "format-card selected" : "format-card"}
               onClick={() => updateFormat("docx")}
             >
-              DOCX
+              <strong>DOCX</strong>
+              <span>适合 Word 交付和模板套版</span>
             </button>
             <button
               type="button"
-              className={format === "pdf" ? "selected" : ""}
+              className={format === "pdf" ? "format-card selected" : "format-card"}
               onClick={() => updateFormat("pdf")}
             >
-              PDF
+              <strong>PDF</strong>
+              <span>适合定稿预览和直接发送</span>
             </button>
           </div>
+
           <button
             type="button"
             className="primary"
-            disabled={isConverting}
+            disabled={isConverting || !canConvert}
             onClick={handleConvert}
           >
             {isConverting ? "转换中..." : "开始转换"}
           </button>
         </form>
 
-        <section className="panel">
-          <h2>执行结果</h2>
+        <section className="panel result-panel">
+          <div className="panel-title">
+            <span className="panel-kicker">Step 2</span>
+            <h2>执行结果</h2>
+            <p>转换完成后可直接打开文件或定位到输出目录。</p>
+          </div>
           {result ? (
             <>
               {result.ok && result.data ? (
-                <div className="quick-actions">
-                  <button type="button" onClick={() => openOutputFile(result.data!.output_path)}>
-                    打开文件
-                  </button>
-                  <button type="button" onClick={() => revealOutputFile(result.data!.output_path)}>
-                    显示位置
-                  </button>
+                <div className="result-card success-card">
+                  <span className="status-badge success-badge">转换成功</span>
+                  <h3>{result.data.format.toUpperCase()} 已生成</h3>
+                  <p className="path-text">{result.data.output_path}</p>
+                  <div className="quick-actions">
+                    <button type="button" onClick={() => openOutputFile(result.data!.output_path)}>
+                      打开文件
+                    </button>
+                    <button type="button" onClick={() => revealOutputFile(result.data!.output_path)}>
+                      显示位置
+                    </button>
+                    <button type="button" onClick={() => copyPath(result.data!.output_path)}>
+                      复制路径
+                    </button>
+                  </div>
                 </div>
               ) : null}
-              <pre className={result.ok ? "result success" : "result failed"}>
-                {JSON.stringify(result, null, 2)}
-              </pre>
-              {!result.ok && errorHint(result.error) ? (
-                <div className="error-hint">{errorHint(result.error)}</div>
+              {!result.ok ? (
+                <div className="result-card failed-card">
+                  <span className="status-badge failed-badge">转换失败</span>
+                  <h3>{result.error?.code ?? "UNKNOWN_ERROR"}</h3>
+                  <p>{summarizeError(result.error?.message)}</p>
+                  {errorHint(result.error) ? (
+                    <div className="error-hint">{errorHint(result.error)}</div>
+                  ) : null}
+                </div>
               ) : null}
+              <details className="raw-details">
+                <summary>查看原始响应</summary>
+                <pre className={result.ok ? "result success" : "result failed"}>
+                  {JSON.stringify(result, null, 2)}
+                </pre>
+              </details>
             </>
           ) : (
-            <div className="empty-state">等待转换任务</div>
+            <div className="empty-state polished-empty">
+              <strong>等待转换任务</strong>
+              <span>选择 Markdown 文件后，点击开始转换。</span>
+            </div>
           )}
         </section>
       </section>
@@ -511,12 +555,14 @@ export default function Workbench() {
             {filteredHistory.map((record) => (
               <article className="history-item" key={record.record_id}>
                 <div>
-                  <strong>{formatStatus(record)}</strong>
-                  <span>{record.format.toUpperCase()}</span>
+                  <strong className={record.status === "success" ? "history-status success-badge" : "history-status failed-badge"}>
+                    {formatStatus(record)}
+                  </strong>
+                  <span className="format-chip">{record.format.toUpperCase()}</span>
                   <time>{new Date(record.created_at).toLocaleString()}</time>
                 </div>
-                <p>{record.input_path}</p>
-                <p>{record.output_path}</p>
+                <p className="path-text">{record.input_path}</p>
+                <p className="path-text">{record.output_path}</p>
                 <div className="history-actions">
                   <button type="button" onClick={() => copyPath(record.input_path)}>
                     复制输入

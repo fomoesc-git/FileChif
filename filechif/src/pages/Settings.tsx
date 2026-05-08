@@ -79,14 +79,18 @@ export default function Settings({ initialSection = "settings" }: SettingsProps)
 
   return (
     <main className="app-shell">
-      <section className="toolbar">
+      <section className="hero-banner compact-hero">
         <div>
+          <span className="eyebrow">{initialSection === "about" ? "About" : "Settings"}</span>
           <h1>{initialSection === "about" ? "关于 FileChif" : "设置"}</h1>
           <p>{initialSection === "about" ? "产品信息、开源仓库与版本状态" : "应用状态与本地依赖"}</p>
         </div>
-        <button type="button" onClick={refreshStatus}>
-          刷新状态
-        </button>
+        <div className="hero-actions">
+          {status ? <span className="status-pill">{status.release_channel} · {status.app_version}</span> : null}
+          <button type="button" onClick={refreshStatus}>
+            刷新状态
+          </button>
+        </div>
       </section>
 
       {error ? <div className="notice">{error}</div> : null}
@@ -114,7 +118,7 @@ export default function Settings({ initialSection = "settings" }: SettingsProps)
             </article>
           ) : null}
 
-          <article className="panel">
+          <article className="panel info-panel">
             <h2>应用</h2>
             <dl className="info-list">
               <dt>名称</dt>
@@ -134,7 +138,7 @@ export default function Settings({ initialSection = "settings" }: SettingsProps)
             </dl>
           </article>
 
-          <article className="panel">
+          <article className="panel info-panel">
             <h2>版本与更新</h2>
             <dl className="info-list">
               <dt>开源仓库</dt>
@@ -155,13 +159,13 @@ export default function Settings({ initialSection = "settings" }: SettingsProps)
             </div>
           </article>
 
-          <article className="panel">
+          <article className="panel info-panel">
             <h2>依赖</h2>
             <div className="dependency-list">
               {status.dependencies.map((dependency) => (
                 <div className="dependency-item" key={dependency.name}>
                   <strong>{dependency.name}</strong>
-                  <span className={dependency.available ? "status-ok" : "status-bad"}>
+                  <span className={dependency.available ? "status-badge success-badge" : "status-badge failed-badge"}>
                     {dependency.available ? "可用" : "不可用"}
                   </span>
                   <p>{dependency.version ?? dependency.message ?? "无版本信息"}</p>
