@@ -186,7 +186,7 @@ fn ensure_input_path(path: &Path) -> Result<(), AppError> {
     }
 
     match extension_lowercase(path).as_str() {
-        "md" | "markdown" => Ok(()),
+        "md" | "markdown" | "txt" | "docx" => Ok(()),
         other => Err(AppError::InvalidInputExtension(other.to_string())),
     }
 }

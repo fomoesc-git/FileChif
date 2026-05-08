@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 
 type Format = "docx" | "pdf";
 type InputMode = "file" | "paste";
+type InputKind = "markdown" | "text" | "docx" | "unknown";
 
 type HealthData = {
   app_name: string;
@@ -75,6 +77,8 @@ const formatExtensions: Record<Format, string> = {
   pdf: "pdf",
 };
 
+const supportedInputExtensions = ["md", "markdown", "txt", "docx"];
+
 function replaceExtension(path: string, extension: string) {
   const trimmed = path.trim();
   if (!trimmed) {
@@ -88,6 +92,34 @@ function replaceExtension(path: string, extension: string) {
   }
 
   return `${trimmed}.${extension}`;
+}
+
+function extensionOf(path: string) {
+  const cleanPath = path.split("?")[0].split("#")[0];
+  const separatorIndex = Math.max(cleanPath.lastIndexOf("/"), cleanPath.lastIndexOf("\\"));
+  const dotIndex = cleanPath.lastIndexOf(".");
+  if (dotIndex <= separatorIndex) {
+    return "";
+  }
+  return cleanPath.slice(dotIndex + 1).toLowerCase();
+}
+
+function inputKindFromPath(path: string): InputKind {
+  const extension = extensionOf(path);
+  if (extension === "md" || extension === "markdown") {
+    return "markdown";
+  }
+  if (extension === "txt") {
+    return "text";
+  }
+  if (extension === "docx") {
+    return "docx";
+  }
+  return "unknown";
+}
+
+function recommendedFormatForPath(path: string): Format {
+  return inputKindFromPath(path) === "docx" ? "pdf" : "docx";
 }
 
 function formatStatus(record: HistoryRecord) {
@@ -141,6 +173,7 @@ export default function Workbench() {
   const [templates, setTemplates] = useState<TemplateRecord[]>([]);
   const [templateName, setTemplateName] = useState("");
   const [notice, setNotice] = useState("");
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   const commandName = useMemo(() => commandByFormat[format], [format]);
   const filteredHistory = useMemo(
@@ -151,10 +184,66 @@ export default function Workbench() {
   const canConvert = Boolean(
     outputPath.trim() && (inputMode === "file" ? inputPath.trim() : pastedMarkdown.trim()),
   );
+  const inputKind = inputMode === "file" ? inputKindFromPath(inputPath) : "markdown";
+  const preflightItems = [
+    {
+      label: "输入来源",
+      ok: inputMode === "file" ? Boolean(inputPath.trim()) && inputKind !== "unknown" : Boolean(pastedMarkdown.trim()),
+      detail:
+        inputMode === "file"
+          ? inputPath
+            ? inputKind === "unknown"
+              ? `暂不支持 .${extensionOf(inputPath) || "unknown"}`
+              : `${inputKind.toUpperCase()} 文件`
+            : "等待选择或拖入文件"
+          : pastedMarkdown.trim()
+            ? "已粘贴 Markdown 文本"
+            : "等待粘贴 Markdown",
+    },
+    {
+      label: "输出目标",
+      ok: Boolean(outputPath.trim()),
+      detail: outputPath || "等待选择输出路径",
+    },
+    {
+      label: "输出格式",
+      ok: true,
+      detail: format.toUpperCase(),
+    },
+    {
+      label: "模板",
+      ok: true,
+      detail: templatePath.trim() ? "已选择 DOCX 模板" : format === "docx" ? "未选择模板，将使用默认样式" : "PDF 当前不需要 DOCX 模板",
+    },
+    {
+      label: "AI 字段识别",
+      ok: true,
+      detail: "预留能力，后续接入 DeepSeek API",
+    },
+  ];
 
   const updateFormat = (nextFormat: Format) => {
     setFormat(nextFormat);
     setOutputPath((current) => replaceExtension(current || inputPath, formatExtensions[nextFormat]));
+  };
+
+  const applyInputPath = (path: string) => {
+    const kind = inputKindFromPath(path);
+    if (!supportedInputExtensions.includes(extensionOf(path))) {
+      setNotice(`暂不支持该文件类型：.${extensionOf(path) || "unknown"}`);
+      return;
+    }
+
+    const nextFormat = recommendedFormatForPath(path);
+    setInputMode("file");
+    setInputPath(path);
+    setFormat(nextFormat);
+    setOutputPath(replaceExtension(path, formatExtensions[nextFormat]));
+    setNotice(
+      kind === "docx"
+        ? "已识别 DOCX 文件，建议输出 PDF。"
+        : "已识别 Markdown/TXT 文件，建议输出 DOCX。",
+    );
   };
 
   const refreshHistory = async () => {
@@ -231,8 +320,7 @@ export default function Workbench() {
     });
 
     if (typeof selected === "string") {
-      setInputPath(selected);
-      setOutputPath((current) => current || replaceExtension(selected, formatExtensions[format]));
+      applyInputPath(selected);
     }
   };
 
@@ -357,6 +445,35 @@ export default function Workbench() {
     refreshTemplates().catch(() => setTemplates([]));
   }, []);
 
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    getCurrentWebview()
+      .onDragDropEvent((event) => {
+        if (event.payload.type === "enter" || event.payload.type === "over") {
+          setIsDraggingFile(true);
+        }
+        if (event.payload.type === "leave") {
+          setIsDraggingFile(false);
+        }
+        if (event.payload.type === "drop") {
+          setIsDraggingFile(false);
+          const firstPath = event.payload.paths[0];
+          if (firstPath) {
+            applyInputPath(firstPath);
+          }
+        }
+      })
+      .then((cleanup) => {
+        unlisten = cleanup;
+      })
+      .catch(() => setNotice("拖拽监听初始化失败，可继续使用文件选择。"));
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
+
   return (
     <main className="app-shell">
       <section className="workspace-toolbar">
@@ -397,6 +514,11 @@ export default function Workbench() {
             >
               粘贴 Markdown
             </button>
+          </div>
+
+          <div className={isDraggingFile ? "drop-zone dragging" : "drop-zone"}>
+            <strong>拖入文件自动识别</strong>
+            <span>支持 .md / .markdown / .txt / .docx；DOCX 默认推荐输出 PDF。</span>
           </div>
 
           {inputMode === "file" ? (
@@ -454,7 +576,7 @@ export default function Workbench() {
             </div>
           </label>
 
-          <label className="field-card">
+          <label className={format === "docx" ? "field-card template-focus" : "field-card"}>
             <span className="input-label">DOCX 模板（可选）</span>
             <div className="path-row">
               <input
@@ -467,6 +589,13 @@ export default function Workbench() {
               </button>
             </div>
           </label>
+
+          {format === "docx" ? (
+            <div className="template-callout">
+              <strong>模板选择</strong>
+              <span>{templatePath ? "当前会使用已选择模板套版。" : "未选择模板时，pandoc 会使用默认 DOCX 样式。"}</span>
+            </div>
+          ) : null}
 
           <label className="field-card compact-field">
             <span className="input-label">保存到模板库</span>
@@ -579,6 +708,35 @@ export default function Workbench() {
               <span>选择 Markdown 文件后，点击开始转换。</span>
             </div>
           )}
+
+          <section className="preflight-panel">
+            <div className="panel-title compact-title">
+              <span className="panel-kicker">Preflight</span>
+              <h2>转换前检查</h2>
+            </div>
+            <div className="preflight-list">
+              {preflightItems.map((item) => (
+                <div className="preflight-item" key={item.label}>
+                  <span className={item.ok ? "preflight-dot ok" : "preflight-dot bad"} />
+                  <div>
+                    <strong>{item.label}</strong>
+                    <p>{item.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="ai-placeholder">
+            <div>
+              <span className="panel-kicker">AI Field Mapping</span>
+              <h2>字段识别预留区</h2>
+              <p>后续接入 DeepSeek 后，这里会展示模板字段、自动匹配结果和人工确认入口。</p>
+            </div>
+            <button type="button" disabled>
+              待接入
+            </button>
+          </section>
         </section>
       </section>
 
