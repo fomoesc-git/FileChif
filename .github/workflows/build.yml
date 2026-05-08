@@ -1,0 +1,77 @@
+name: Build FileChif
+
+on:
+  push:
+    branches: ["main"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-14, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: filechif/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        working-directory: filechif
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: filechif
+        run: npm run build
+
+      - name: Check Rust backend
+        working-directory: filechif
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+
+      - name: Test Rust backend
+        working-directory: filechif
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Build Tauri app on macOS
+        if: matrix.platform == 'macos-14'
+        uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: filechif
+
+      - name: Build Tauri app on Windows
+        if: matrix.platform == 'windows-latest'
+        uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: filechif
+          args: --bundles nsis
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'macos-14'
+        uses: actions/upload-artifact@v4
+        with:
+          name: filechif-macos
+          path: |
+            filechif/src-tauri/target/release/bundle/dmg/*.dmg
+            filechif/src-tauri/target/release/bundle/macos/*.app
+
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: filechif-windows
+          path: filechif/src-tauri/target/release/bundle/nsis/*.exe

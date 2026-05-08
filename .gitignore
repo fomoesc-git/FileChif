@@ -1,0 +1,13 @@
+.DS_Store
+
+filechif/node_modules/
+filechif/dist/
+filechif/src-tauri/target/
+
+filechif/data/history.json
+filechif/data/templates.json
+
+releases/*.dmg
+releases/*.exe
+releases/*.msi
+releases/*.zip
